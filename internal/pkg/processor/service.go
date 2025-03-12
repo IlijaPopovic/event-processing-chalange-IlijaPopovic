@@ -2,9 +2,9 @@ package processor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/Bitstarz-eng/event-processing-challenge/internal/casino"
 	"github.com/Bitstarz-eng/event-processing-challenge/internal/pkg/formatter"
@@ -46,16 +46,28 @@ func (s *Service) ProcessEvents(ctx context.Context) {
 
 func (s *Service) processEvent(ctx context.Context, event casino.Event) error {
 
-	event.Description = fmt.Sprintf("Processed at %s", time.Now().Format(time.RFC3339))
+	event.Description = formatter.FormatEventDescription(event)
 
 	s.metrics.HandleEvent(event)
+
+	if err := logEventJSON(event); err != nil {
+		return fmt.Errorf("failed to log event: %v", err)
+	}
 
 	if err := s.repo.SaveEvent(ctx, &event); err != nil {
 		return fmt.Errorf("failed to save event: %w", err)
 	}
 
-	event.Description = formatter.FormatEventDescription(event)
+	return nil
+}
 
-	log.Printf("Processed event: %s", event.Description)
+func logEventJSON(event casino.Event) error {
+	jsonData, err := json.Marshal(event)
+	if err != nil{
+		return fmt.Errorf("error marshaling event to JSON: %w", err)
+	}
+
+	log.Println(string(jsonData))
+
 	return nil
 }
